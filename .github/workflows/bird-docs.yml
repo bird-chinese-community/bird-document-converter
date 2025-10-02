@@ -71,10 +71,12 @@ jobs:
           if git ls-remote "$repo_url" HEAD >/dev/null 2>&1; then
             git clone "$repo_url" docs
             cd docs
-            if git ls-remote "$repo_url" "refs/heads/$dest_branch" >/dev/null 2>&1; then
+            if git rev-parse --verify "origin/$dest_branch" >/dev/null 2>&1; then
               git checkout "$dest_branch"
             else
-              git checkout -b "$dest_branch"
+              git checkout --orphan "$dest_branch"
+              git rm -rf . >/dev/null 2>&1 || true
+              git clean -fd >/dev/null 2>&1 || true
             fi
           else
             git config --global init.defaultBranch master
@@ -82,7 +84,9 @@ jobs:
             cd docs
             git init
             git remote add origin "$repo_url"
-            git checkout -b "$dest_branch"
+            git checkout --orphan "$dest_branch"
+            git rm -rf . >/dev/null 2>&1 || true
+            git clean -fd >/dev/null 2>&1 || true
           fi
 
       - name: Prepare Bird build system
