@@ -37,23 +37,53 @@ jobs:
       - name: Determine Bird branch
         id: determine-branch
         run: |
-          branch="master"
+          branch="${{ github.ref_name }}"
+          if [ -z "$branch" ]; then
+            branch="${{ github.event.repository.default_branch || 'master' }}"
+          fi
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.bird_branch }}" ]; then
             branch="${{ github.event.inputs.bird_branch }}"
           fi
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+          bird_branch="$branch"
+          if ! git ls-remote --heads https://github.com/CZ-NIC/bird.git "$bird_branch" >/dev/null 2>&1; then
+            echo "Requested Bird branch '$bird_branch' not found upstream. Falling back to 'master'."
+            bird_branch="master"
+          fi
+
+          {
+            echo "branch=$branch"
+            echo "bird_branch=$bird_branch"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Clone Bird repository
         run: |
-          git clone --depth 1 --branch "${{ steps.determine-branch.outputs.branch }}" https://github.com/CZ-NIC/bird.git bird-src
+          git clone --depth 1 --branch "${{ steps.determine-branch.outputs.bird_branch }}" https://github.com/CZ-NIC/bird.git bird-src
 
-      - name: Check out docs repository
-        uses: actions/checkout@v4
-        with:
-          repository: bird-chinese-community/bird-doc-markdown
-          ref: ${{ steps.determine-branch.outputs.branch }}
-          path: docs
-          token: ${{ secrets.API_TOKEN_GITHUB }}
+      - name: Prepare docs repository
+        env:
+          DOCS_PAT: ${{ secrets.API_TOKEN_GITHUB }}
+        run: |
+          set -euo pipefail
+          dest_branch="${{ steps.determine-branch.outputs.branch }}"
+          repo_url="https://${DOCS_PAT}@github.com/bird-chinese-community/bird-doc-markdown.git"
+
+          if git ls-remote "$repo_url" HEAD >/dev/null 2>&1; then
+            git clone "$repo_url" docs
+            cd docs
+            if git ls-remote "$repo_url" "refs/heads/$dest_branch" >/dev/null 2>&1; then
+              git checkout "$dest_branch"
+            else
+              git checkout -b "$dest_branch"
+            fi
+          else
+            git config --global init.defaultBranch master
+            mkdir -p docs
+            cd docs
+            git init
+            git remote add origin "$repo_url"
+            git checkout -b "$dest_branch"
+          fi
 
       - name: Prepare Bird build system
         working-directory: bird-src
@@ -75,4 +105,6 @@ jobs:
         with:
           commit_message: "chore: update Bird documentation snapshot"
           repository: docs
-          branch: ${{ github.ref_name }}
+          branch: ${{ steps.determine-branch.outputs.branch }}
+          create_branch: true
+          token: ${{ secrets.API_TOKEN_GITHUB }}
