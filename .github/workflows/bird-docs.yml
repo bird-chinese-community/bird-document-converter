@@ -47,6 +47,14 @@ jobs:
         run: |
           git clone --depth 1 --branch "${{ steps.determine-branch.outputs.branch }}" https://github.com/CZ-NIC/bird.git bird-src
 
+      - name: Check out docs repository
+        uses: actions/checkout@v4
+        with:
+          repository: bird-chinese-community/bird-doc-markdown
+          ref: ${{ steps.determine-branch.outputs.branch }}
+          path: docs
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+
       - name: Prepare Bird build system
         working-directory: bird-src
         run: |
@@ -63,8 +71,8 @@ jobs:
           python3 scripts/convert_bird_docs.py --source bird-src
 
       - name: Commit generated documentation
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "chore: update Bird documentation snapshot"
+          repository: docs
           branch: ${{ github.ref_name }}
-          file_pattern: docs/
