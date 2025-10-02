@@ -1,0 +1,60 @@
+name: Build Bird documentation
+
+on:
+  workflow_dispatch:
+    inputs:
+      bird_branch:
+        description: "Bird repository branch to clone"
+        required: false
+        default: ""
+  schedule:
+    - cron: "0 0 * * 1"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc perl autoconf automake libtool build-essential pkg-config flex bison
+
+      - name: Determine Bird branch
+        id: determine-branch
+        run: |
+          branch="${{ github.ref_name }}"
+          if [ -n "${{ github.event.inputs.bird_branch }}" ]; then
+            branch="${{ github.event.inputs.bird_branch }}"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Clone Bird repository
+        run: |
+          git clone --depth 1 --branch "${{ steps.determine-branch.outputs.branch }}" https://github.com/CZ-NIC/bird.git bird-src
+
+      - name: Prepare Bird build system
+        working-directory: bird-src
+        run: |
+          autoreconf -fi
+          ./configure
+
+      - name: Build SGML documentation
+        working-directory: bird-src
+        run: |
+          make obj/doc/bird.sgml obj/doc/prog.sgml
+
+      - name: Convert Bird documentation
+        run: |
+          python3 scripts/convert_bird_docs.py --source bird-src
+
+      - name: Commit generated documentation
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update Bird documentation snapshot"
+          branch: ${{ github.ref_name }}
+          file_pattern: docs/
