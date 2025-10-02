@@ -225,13 +225,6 @@ def main() -> None:
     args = parse_args()
 
     OUTPUT_ROOT.mkdir(exist_ok=True)
-    for child in OUTPUT_ROOT.iterdir():
-        if child.is_dir():
-            shutil.rmtree(child)
-        elif child.is_file() and child.name != MANIFEST_PATH.name:
-            child.unlink()
-    if MANIFEST_PATH.exists():
-        MANIFEST_PATH.unlink()
 
     with contextlib.ExitStack() as stack:
         if args.source:
@@ -239,13 +232,7 @@ def main() -> None:
             if not source_path.exists():
                 raise FileNotFoundError(f"Provided source directory does not exist: {source_path}")
         else:
-            tmp_path_str = stack.enter_context(tempfile.TemporaryDirectory())
-            source_path = Path(tmp_path_str)
-            clone_cmd = ["git", "clone", "--depth", "1"]
-            if args.branch:
-                clone_cmd.extend(["--branch", args.branch])
-            clone_cmd.extend([REPO_URL, str(source_path)])
-            run(clone_cmd)
+            raise RuntimeError("Branch-based source fetching is disabled. Please provide --source pointing to a Bird checkout.")
 
         work_dir_str = stack.enter_context(tempfile.TemporaryDirectory())
         work_dir = Path(work_dir_str)

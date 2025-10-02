@@ -47,8 +47,8 @@ jobs:
 
           bird_branch="$branch"
           if ! git ls-remote --heads https://github.com/CZ-NIC/bird.git "$bird_branch" >/dev/null 2>&1; then
-            echo "Requested Bird branch '$bird_branch' not found upstream. Falling back to 'master'."
-            bird_branch="master"
+            echo "Requested Bird branch '$bird_branch' not found upstream."
+            exit 1
           fi
 
           {
