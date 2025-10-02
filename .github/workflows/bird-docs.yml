@@ -27,8 +27,8 @@ jobs:
       - name: Determine Bird branch
         id: determine-branch
         run: |
-          branch="${{ github.ref_name }}"
-          if [ -n "${{ github.event.inputs.bird_branch }}" ]; then
+          branch="master"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.bird_branch }}" ]; then
             branch="${{ github.event.inputs.bird_branch }}"
           fi
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
