@@ -196,7 +196,6 @@ def write_manifest(files: Iterable[Path], version: str, commit: str) -> None:
         })
 
     data = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
         "source_repo": REPO_URL,
         "source_commit": commit,
         "source_version": version,
